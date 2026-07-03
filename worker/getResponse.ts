@@ -5,7 +5,7 @@ export function getResponse(process: ChildProcess): Promise<string> {
 
   return new Promise((resolve, reject) => {
     process.stdout?.on("data", (msg: Buffer) => {
-      finalOutput = msg.toString();
+      finalOutput += msg.toString();
     });
 
     process.stderr?.on("data", (err: Buffer) => {

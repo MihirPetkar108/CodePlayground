@@ -3,17 +3,20 @@ import { createClient } from "redis";
 import fs from "fs";
 import { getResponseFromCompiler } from "./getResponseFromCompiler";
 import { getResponse } from "./getResponse";
+import { add_output_to_DB } from "./add_output_to_DB";
 
 const client = createClient();
 client.connect().then(async () => {
   console.log("Connected to Worker Client!");
   while (1) {
+    let submissionId = ""
     try {
       const response = await client.brPop("submission", 0);
 
       const responseParsed = JSON.parse(response!.element);
       const language = responseParsed.language;
       const code = responseParsed.code;
+      submissionId = responseParsed.submissionId;
 
       let filePath = `${__dirname}/code/`;
       let finalOutput = "";
@@ -21,7 +24,7 @@ client.connect().then(async () => {
       let outputFile = "./code/out";
 
       // JAVA
-      if(language === "java") {
+      if (language === "java") {
         console.log(`Running user's Java Code`);
         filePath += "a.java";
 
@@ -33,6 +36,8 @@ client.connect().then(async () => {
         const process = spawn("java", [filePath]);
         const finalOutput = await getResponse(process);
         console.log(finalOutput);
+
+        await add_output_to_DB(finalOutput, submissionId, true);
       }
 
       // CPP
@@ -48,11 +53,12 @@ client.connect().then(async () => {
         const process = spawn(outputFile);
         finalOutput = await getResponse(process);
         console.log(finalOutput);
+        await add_output_to_DB(finalOutput, submissionId, true);
       }
 
       // RUST
-      if(language === "rust") {
-        console.log("Running user's Rust Code")
+      if (language === "rust") {
+        console.log("Running user's Rust Code");
         filePath += "a.rs";
 
         fs.writeFileSync(filePath, code);
@@ -62,7 +68,7 @@ client.connect().then(async () => {
         const process = spawn(outputFile);
         const finalOutput = await getResponse(process);
         console.log(finalOutput);
-
+        await add_output_to_DB(finalOutput, submissionId, true);
       }
 
       // JS
@@ -75,6 +81,7 @@ client.connect().then(async () => {
         const process = spawn("node", [filePath]);
         finalOutput = await getResponse(process);
         console.log(finalOutput);
+        await add_output_to_DB(finalOutput, submissionId, true);
       }
 
       // PY
@@ -88,9 +95,11 @@ client.connect().then(async () => {
         const process = spawn("python3", [filePath]);
         finalOutput = await getResponse(process);
         console.log(finalOutput);
+        await add_output_to_DB(finalOutput, submissionId, true);
       }
-    } catch (e) {
-      console.log(`${e}`);
+    } catch (err) {
+      console.log(err);
+      await add_output_to_DB(String(err), submissionId, false);
     }
   }
 });
